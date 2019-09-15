@@ -73,7 +73,7 @@ void audiotags_file_properties(const TagLib_File *file, int id)
   }
 }
 
-void audiotags_write_property(TagLib_File *file, const char *field_c, const char *value_c)
+bool audiotags_write_property(TagLib_File *file, const char *field_c, const char *value_c)
 {
   TagLib::String field = field_c;
   TagLib::String value = value_c;
@@ -100,11 +100,12 @@ void audiotags_write_property(TagLib_File *file, const char *field_c, const char
     } else {
       tags.replace(field, value);
     }
-    // TODO set up checkForRejectedProperties
-    //checkForRejectedProperties(f->setProperties(tags));
-    f->setProperties(tags);
+    if((f->setProperties(tags)).size() > 0) {
+      return false;
+    }
   }
   f->save();
+  return true;
 }
 
 const TagLib_AudioProperties *audiotags_file_audioproperties(const TagLib_File *file)

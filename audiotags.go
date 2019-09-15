@@ -93,12 +93,16 @@ func (f *File) ReadTags() map[string]string {
 }
 
 // TODO allow for multiple tag changes (WriteTags)
-func (f *File) WriteTag(tag, value string) {
+func (f *File) WriteTag(tag, value string) bool {
 	tag_c := C.CString(tag)
 	defer C.free(unsafe.Pointer(tag_c))
 	value_c := C.CString(value)
 	defer C.free(unsafe.Pointer(value_c))
-	C.audiotags_write_property((*C.TagLib_File)(f), tag_c, value_c)
+	if C.audiotags_write_property((*C.TagLib_File)(f), tag_c, value_c) {
+		return true
+	} else {
+		return false
+	}
 }
 
 func (f *File) ReadAudioProperties() *AudioProperties {
