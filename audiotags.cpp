@@ -73,6 +73,40 @@ void audiotags_file_properties(const TagLib_File *file, int id)
   }
 }
 
+void audiotags_write_property(TagLib_File *file, const char *field_c, const char *value_c)
+{
+  TagLib::String field = field_c;
+  TagLib::String value = value_c;
+  TagLib::File *f = reinterpret_cast<TagLib::File *>(file);
+  TagLib::Tag *t = f->tag();
+  if(field == "title") {
+    t->setTitle(value);
+  } else if(field == "artist") {
+    t->setArtist(value);
+  } else if(field == "album") {
+    t->setAlbum(value);
+  } else if(field == "comment") {
+    t->setComment(value);
+  } else if(field == "genre") {
+    t->setGenre(value);
+  } else if(field == "year") {
+    t->setYear(value.toInt());
+  } else if(field == "track") {
+    t->setTrack(value.toInt());
+  } else {
+    TagLib::PropertyMap tags = f->properties();
+    if(!tags.contains(field)) {
+      tags.insert(field, value);
+    } else {
+      tags.replace(field, value);
+    }
+    // TODO set up checkForRejectedProperties
+    //checkForRejectedProperties(f->setProperties(tags));
+    f->setProperties(tags);
+  }
+  f->save();
+}
+
 const TagLib_AudioProperties *audiotags_file_audioproperties(const TagLib_File *file)
 {
   const TagLib::File *f = reinterpret_cast<const TagLib::File *>(file);
@@ -81,7 +115,7 @@ const TagLib_AudioProperties *audiotags_file_audioproperties(const TagLib_File *
 
 const TagLib::AudioProperties *props(const TagLib_AudioProperties *audioProperties)
 {
-  return reinterpret_cast<const TagLib::AudioProperties *>(audioProperties); 
+  return reinterpret_cast<const TagLib::AudioProperties *>(audioProperties);
 }
 
 int audiotags_audioproperties_length(const TagLib_AudioProperties *audioProperties)
