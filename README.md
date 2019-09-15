@@ -4,19 +4,19 @@ audiotags
 library and command to retrieve audio metadata tags (uses [TagLib](http://taglib.github.io/))
 
 - uses libtag directly (doesn't use the C bindings)
-- read only support
+- read and write support
 - returns the extended metadata (albumartist, composer, discnumber, etc...)
 - builds with cgo
 
 ## Install command and library
 
-    go get github.com/nicksellen/audiotags/audiotags
-    
+    go get github.com/nbonaparte/audiotags/audiotags
+
 ## Install library
 
-    go get github.com/nicksellen/audiotags
-    
-    
+    go get github.com/nbonaparte/audiotags
+
+
 ## Command example
 
     # audiotags '/store/music/John Holloway/J.S. Bach_ The Sonatas and Partitas for violin solo/2-09 Allegro assai [Sonata No. 3 in C major BWV 1005].mp3'
@@ -34,38 +34,38 @@ library and command to retrieve audio metadata tags (uses [TagLib](http://taglib
     bitrate 222
     samplerate 44100
     channels 2
-    
+
 # Library example
 
     package main
-    
+
     import (
     	"fmt"
-    	"github.com/nicksellen/audiotags"
+    	"github.com/nbonaparte/audiotags"
     	"log"
     	"os"
     )
-    
+
     func main() {
-    
+
     	if len(os.Args) != 2 {
     		fmt.Println("pass path to file")
     		return
     	}
-    
+
     	props, audioProps, err := audiotags.Read(os.Args[1])
-    	
+
     	if err != nil {
     		log.Fatal(err)
     	}
-    	
+
     	for k, v := range props {
     		fmt.Printf("%s %s\n", k, v)
     	}
-    
+
     	fmt.Printf("length %d\nbitrate %d\nsamplerate %d\nchannels %d\n",
     		audioProps.Length, audioProps.Bitrate, audioProps.Samplerate, audioProps.Channels)
-    
+
     }
 
 
@@ -74,11 +74,11 @@ library and command to retrieve audio metadata tags (uses [TagLib](http://taglib
 On Debian/Ubuntu:
 
     apt-get install libtag1-vanilla
-    
+
 On OS X:
 
     brew install taglib
-    
-    
 
-    
+
+
+
