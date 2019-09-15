@@ -75,35 +75,48 @@ void audiotags_file_properties(const TagLib_File *file, int id)
 
 bool audiotags_write_property(TagLib_File *file, const char *field_c, const char *value_c)
 {
-  TagLib::String field = field_c;
-  TagLib::String value = value_c;
+  return audiotags_write_properties(file, 1, &field_c, &value_c);
+}
+
+bool audiotags_write_properties(TagLib_File *file, unsigned int len, const char *fields_c[], const char *values_c[])
+{
   TagLib::File *f = reinterpret_cast<TagLib::File *>(file);
   TagLib::Tag *t = f->tag();
-  if(field == "title") {
-    t->setTitle(value);
-  } else if(field == "artist") {
-    t->setArtist(value);
-  } else if(field == "album") {
-    t->setAlbum(value);
-  } else if(field == "comment") {
-    t->setComment(value);
-  } else if(field == "genre") {
-    t->setGenre(value);
-  } else if(field == "year") {
-    t->setYear(value.toInt());
-  } else if(field == "track") {
-    t->setTrack(value.toInt());
-  } else {
-    TagLib::PropertyMap tags = f->properties();
-    if(!tags.contains(field)) {
-      tags.insert(field, value);
+  TagLib::PropertyMap tags = f->properties();
+
+  for(uint i = 0; i < len; i++) {
+    TagLib::String field = fields_c[i];
+    TagLib::String value = values_c[i];
+    if(field == "title") {
+      t->setTitle(value);
+    } else if(field == "artist") {
+      t->setArtist(value);
+    } else if(field == "album") {
+      t->setAlbum(value);
+    } else if(field == "comment") {
+      t->setComment(value);
+    } else if(field == "genre") {
+      t->setGenre(value);
+    } else if(field == "year") {
+      t->setYear(value.toInt());
+    } else if(field == "track") {
+      t->setTrack(value.toInt());
     } else {
-      tags.replace(field, value);
+      if(!tags.contains(field)) {
+        tags.insert(field, value);
+      } else {
+        tags.replace(field, value);
+      }
+      // skip saving if some other property was changed
+      continue;
     }
-    if((f->setProperties(tags)).size() > 0) {
-      return false;
-    }
+    f->save();
   }
+
+  if((f->setProperties(tags)).size() > 0) {
+    return false;
+  }
+
   f->save();
   return true;
 }
