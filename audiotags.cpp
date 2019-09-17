@@ -82,11 +82,11 @@ bool audiotags_write_properties(TagLib_File *file, unsigned int len, const char 
 {
   TagLib::File *f = reinterpret_cast<TagLib::File *>(file);
   TagLib::Tag *t = f->tag();
-  TagLib::PropertyMap tags = f->properties();
 
+  bool prop_changed = false;
   for(uint i = 0; i < len; i++) {
-    TagLib::String field = fields_c[i];
-    TagLib::String value = values_c[i];
+    TagLib::String field(fields_c[i], TagLib::String::Type::UTF8);
+    TagLib::String value(values_c[i], TagLib::String::Type::UTF8);
     if(field == "title") {
       t->setTitle(value);
     } else if(field == "artist") {
@@ -102,22 +102,19 @@ bool audiotags_write_properties(TagLib_File *file, unsigned int len, const char 
     } else if(field == "track") {
       t->setTrack(value.toInt());
     } else {
+      TagLib::PropertyMap tags = f->properties();
       if(!tags.contains(field)) {
         tags.insert(field, value);
       } else {
         tags.replace(field, value);
       }
-      // skip saving if some other property was changed
-      continue;
+      if((f->setProperties(tags)).size() > 0) {
+        return false;
+      }
     }
     f->save();
   }
 
-  if((f->setProperties(tags)).size() > 0) {
-    return false;
-  }
-
-  f->save();
   return true;
 }
 
