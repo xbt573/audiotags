@@ -27,25 +27,55 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nicksellen/audiotags"
+	"github.com/nbonaparte/audiotags"
 )
 
 func main() {
 
-	if len(os.Args) != 2 {
+	if len(os.Args) < 2 {
 		fmt.Println("pass path to file")
 		return
 	}
 
-	props, audioProps, err := audiotags.Read(os.Args[1])
+	if len(os.Args) % 2 == 1 {
+		fmt.Println("when modifying file every tag must have value")
+		return
+	}
+
+	file, err := audiotags.Open(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println("Current tags")
+	fmt.Println("------------")
+	props := file.ReadTags()
 	for k, v := range props {
-		fmt.Printf("%s %s\n", k, strings.Replace(strings.Replace(v, "\r\n", "\\n", -1), "\n", "\\n", -1))
+		fmt.Printf("%s: %s\n", k, strings.Replace(strings.Replace(v, "\r\n", "\n", -1), "\r", "\n", -1))
 	}
 
-	fmt.Printf("length %d\nbitrate %d\nsamplerate %d\nchannels %d\n",
+	audioProps := file.ReadAudioProperties()
+	fmt.Printf("length: %d\nbitrate: %d\nsamplerate: %d\nchannels: %d\n",
 		audioProps.Length, audioProps.Bitrate, audioProps.Samplerate, audioProps.Channels)
 
+	if len(os.Args) > 2 {
+		tags := make(map[string]string)
+		tmp_tag := ""
+		for i, arg := range os.Args[2:] {
+			// escape newlines so they are correctly represented in the tags
+                        arg = strings.Replace(arg, "\\n", "\n", -1)
+			if i % 2 == 0 {
+				tmp_tag = arg
+			} else {
+				tags[tmp_tag] = arg
+				fmt.Printf("setting %s to %s\n", tmp_tag, arg)
+			}
+		}
+		test := file.WriteTags(tags)
+		if !test {
+			log.Fatal("failed to write tags")
+		}
+	}
+
+	file.Close()
 }
