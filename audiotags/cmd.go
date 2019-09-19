@@ -56,7 +56,7 @@ func main() {
 
 	audioProps := file.ReadAudioProperties()
 	fmt.Printf("length: %d\nbitrate: %d\nsamplerate: %d\nchannels: %d\n",
-		audioProps.Length, audioProps.Bitrate, audioProps.Samplerate, audioProps.Channels)
+		audioProps.LengthMs, audioProps.Bitrate, audioProps.Samplerate, audioProps.Channels)
 
 	if len(os.Args) > 2 {
 		tags := make(map[string]string)

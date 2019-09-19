@@ -38,7 +38,7 @@ import "fmt"
 type File C.TagLib_File
 
 type AudioProperties struct {
-	Length, Bitrate, Samplerate, Channels int
+	Length, LengthMs, Bitrate, Samplerate, Channels int
 }
 
 func Open(filename string) (*File, error) {
@@ -132,6 +132,7 @@ func (f *File) ReadAudioProperties() *AudioProperties {
 	}
 	p := AudioProperties{}
 	p.Length = int(C.audiotags_audioproperties_length(ap))
+	p.LengthMs = int(C.audiotags_audioproperties_length_ms(ap))
 	p.Bitrate = int(C.audiotags_audioproperties_bitrate(ap))
 	p.Samplerate = int(C.audiotags_audioproperties_samplerate(ap))
 	p.Channels = int(C.audiotags_audioproperties_channels(ap))

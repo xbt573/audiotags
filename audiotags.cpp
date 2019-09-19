@@ -138,6 +138,11 @@ int audiotags_audioproperties_length(const TagLib_AudioProperties *audioProperti
   return props(audioProperties)->length();
 }
 
+int audiotags_audioproperties_length_ms(const TagLib_AudioProperties *audioProperties)
+{
+  return props(audioProperties)->lengthInMilliseconds();
+}
+
 int audiotags_audioproperties_bitrate(const TagLib_AudioProperties *audioProperties)
 {
   return props(audioProperties)->bitrate();
