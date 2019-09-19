@@ -123,7 +123,6 @@ func (f *File) WriteTags(tag_map map[string]string) bool {
 	} else {
 		return false
 	}
-
 }
 
 func (f *File) ReadAudioProperties() *AudioProperties {
@@ -137,6 +136,15 @@ func (f *File) ReadAudioProperties() *AudioProperties {
 	p.Samplerate = int(C.audiotags_audioproperties_samplerate(ap))
 	p.Channels = int(C.audiotags_audioproperties_channels(ap))
 	return &p
+}
+
+func (f *File) WritePicture(data []byte, fmt, w, h int) bool {
+	if C.audiotags_write_picture((*C.TagLib_File)(f), (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)),
+			C.int(w), C.int(h), C.int(fmt)) {
+		return true
+	} else {
+		return false
+	}
 }
 
 var maps = make(map[int]map[string]string)

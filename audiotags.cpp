@@ -26,6 +26,10 @@
 
 #include <stdlib.h>
 #include <fileref.h>
+#include <flacfile.h>
+#include <flacpicture.h>
+#include <mp4file.h>
+#include <tbytevector.h>
 #include <tfile.h>
 #include <tpropertymap.h>
 #include <string.h>
@@ -147,4 +151,54 @@ int audiotags_audioproperties_samplerate(const TagLib_AudioProperties *audioProp
 int audiotags_audioproperties_channels(const TagLib_AudioProperties *audioProperties)
 {
   return props(audioProperties)->channels();
+}
+
+enum img_type {
+  JPG = 0,
+  PNG = 1,
+  // to be continued...
+};
+
+bool audiotags_write_picture(TagLib_File *file, const char *data, unsigned int length, int w, int h, int type)
+{
+  TagLib::File *f = reinterpret_cast<TagLib::File *>(file);
+  TagLib::ByteVector byte_vec(data, length);
+
+  // check which type the file is (flac, mp4, etc)
+  if(TagLib::FLAC::File *flac = dynamic_cast<TagLib::FLAC::File *>(f)) {
+    TagLib::FLAC::Picture pic;
+    // only front cover type supported for now
+    pic.setType(TagLib::FLAC::Picture::Type::FrontCover);
+    if(type == PNG) {
+      pic.setMimeType("image/png");
+    } else if (type == JPG) {
+      pic.setMimeType("image/jpeg");
+    } else {
+      return false;
+    }
+
+    pic.setData(byte_vec);
+    pic.setWidth(w);
+    pic.setHeight(h);
+    pic.setColorDepth(24);
+    flac->addPicture(&pic);
+    flac->save();
+  } else if (TagLib::MP4::File *mp4 = dynamic_cast<TagLib::MP4::File *>(f)) {
+    TagLib::MP4::CoverArt::Format fmt = TagLib::MP4::CoverArt::Format::Unknown;
+    if(type == PNG) {
+      fmt = TagLib::MP4::CoverArt::Format::PNG;
+    } else if (type == JPG) {
+      fmt = TagLib::MP4::CoverArt::Format::JPEG;
+    } else {
+      return false;
+    }
+
+    TagLib::MP4::CoverArtList l = mp4->tag()->item("covr").toCoverArtList();
+    l.prepend(TagLib::MP4::CoverArt(fmt, byte_vec));
+    mp4->tag()->setItem("covr", l);
+    mp4->save();
+  } else {
+    return false;
+  }
+  return true;
 }
