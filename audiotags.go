@@ -153,6 +153,14 @@ func (f *File) WritePicture(data []byte, fmt, w, h int) bool {
 	}
 }
 
+func (f *File) RemovePictures() bool {
+	if C.audiotags_remove_pictures((*C.TagLib_File)(f)) {
+		return true
+	} else {
+		return false
+	}
+}
+
 var maps = make(map[int]map[string]string)
 var mapsNextId = 0
 

@@ -49,6 +49,7 @@ int audiotags_audioproperties_samplerate(const TagLib_AudioProperties *audioProp
 int audiotags_audioproperties_channels(const TagLib_AudioProperties *audioProperties);
 
 bool audiotags_write_picture(TagLib_File *file, const char *data, unsigned int length, int w, int h, int type);
+bool audiotags_remove_pictures(TagLib_File *file);
 
 #ifdef __cplusplus
 }

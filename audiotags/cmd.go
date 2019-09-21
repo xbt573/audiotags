@@ -114,6 +114,9 @@ func main() {
 		} else {
 			img_fmt = audiotags.PNG
 		}
+		if !file.RemovePictures() {
+			log.Fatalln("failed to remove existing pictures")
+		}
 		fmt.Println("adding picture...")
 		fmt.Println(len(b))
 		if !file.WritePicture(b, img_fmt, cfg.Width, cfg.Height) {

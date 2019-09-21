@@ -208,3 +208,19 @@ bool audiotags_write_picture(TagLib_File *file, const char *data, unsigned int l
   }
   return true;
 }
+
+bool audiotags_remove_pictures(TagLib_File *file) {
+  TagLib::File *f = reinterpret_cast<TagLib::File *>(file);
+
+  // check which type the file is (flac, mp4, etc)
+  if(TagLib::FLAC::File *flac = dynamic_cast<TagLib::FLAC::File *>(f)) {
+    flac->removePictures();
+    flac->save();
+  } else if (TagLib::MP4::File *mp4 = dynamic_cast<TagLib::MP4::File *>(f)) {
+    mp4->tag()->removeItem("covr");
+    mp4->save();
+  } else {
+    return false;
+  }
+  return true;
+}
