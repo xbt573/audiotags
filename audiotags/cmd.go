@@ -22,12 +22,18 @@
 package main
 
 import (
+	"io/ioutil"
+	"path/filepath"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"image"
+	_ "image/png"
+	_ "image/jpeg"
 
-	"github.com/nbonaparte/audiotags"
+	//"github.com/nbonaparte/audiotags"
+	".."
 )
 
 func main() {
@@ -46,6 +52,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer file.Close()
 
 	fmt.Println("Current tags")
 	fmt.Println("------------")
@@ -77,5 +84,40 @@ func main() {
 		}
 	}
 
-	file.Close()
+	img_name := "cover"
+	if imgs, err := filepath.Glob(img_name + ".*"); err == nil && len(imgs) > 0 {
+		img, err := os.Open(imgs[0])
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer img.Close()
+
+		b, err := ioutil.ReadAll(img)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		// reset offset position
+		_, err = img.Seek(0, 0)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		cfg, mimetype, err := image.DecodeConfig(img)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		var img_fmt int
+		if mimetype == "jpeg" {
+			img_fmt = audiotags.JPEG
+		} else {
+			img_fmt = audiotags.PNG
+		}
+		fmt.Println("adding picture...")
+		fmt.Println(len(b))
+		if !file.WritePicture(b, img_fmt, cfg.Width, cfg.Height) {
+			log.Fatalln("failed to write picture")
+		}
+	}
 }

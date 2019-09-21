@@ -159,7 +159,7 @@ int audiotags_audioproperties_channels(const TagLib_AudioProperties *audioProper
 }
 
 enum img_type {
-  JPG = 0,
+  JPEG = 0,
   PNG = 1,
   // to be continued...
 };
@@ -167,32 +167,33 @@ enum img_type {
 bool audiotags_write_picture(TagLib_File *file, const char *data, unsigned int length, int w, int h, int type)
 {
   TagLib::File *f = reinterpret_cast<TagLib::File *>(file);
-  TagLib::ByteVector byte_vec(data, length);
+  const TagLib::ByteVector byte_vec = TagLib::ByteVector(data, length);
 
   // check which type the file is (flac, mp4, etc)
   if(TagLib::FLAC::File *flac = dynamic_cast<TagLib::FLAC::File *>(f)) {
-    TagLib::FLAC::Picture pic;
+    TagLib::FLAC::Picture *pic = new TagLib::FLAC::Picture;
     // only front cover type supported for now
-    pic.setType(TagLib::FLAC::Picture::Type::FrontCover);
+    pic->setType(TagLib::FLAC::Picture::Type::FrontCover);
     if(type == PNG) {
-      pic.setMimeType("image/png");
-    } else if (type == JPG) {
-      pic.setMimeType("image/jpeg");
+      pic->setMimeType("image/png");
+    } else if (type == JPEG) {
+      pic->setMimeType("image/jpeg");
     } else {
       return false;
     }
 
-    pic.setData(byte_vec);
-    pic.setWidth(w);
-    pic.setHeight(h);
-    pic.setColorDepth(24);
-    flac->addPicture(&pic);
+    pic->setData(byte_vec);
+    pic->setWidth(w);
+    pic->setHeight(h);
+    pic->setColorDepth(24);
+    pic->setNumColors(16777216);
+    flac->addPicture(pic);
     flac->save();
   } else if (TagLib::MP4::File *mp4 = dynamic_cast<TagLib::MP4::File *>(f)) {
     TagLib::MP4::CoverArt::Format fmt = TagLib::MP4::CoverArt::Format::Unknown;
     if(type == PNG) {
       fmt = TagLib::MP4::CoverArt::Format::PNG;
-    } else if (type == JPG) {
+    } else if (type == JPEG) {
       fmt = TagLib::MP4::CoverArt::Format::JPEG;
     } else {
       return false;

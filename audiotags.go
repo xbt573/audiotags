@@ -35,6 +35,11 @@ import (
 
 import "fmt"
 
+const (
+	JPEG = iota
+	PNG = iota
+)
+
 type File C.TagLib_File
 
 type AudioProperties struct {
