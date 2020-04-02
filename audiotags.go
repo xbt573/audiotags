@@ -40,7 +40,7 @@ const (
 	PNG = iota
 )
 
-type File C.TagLib_File
+type File C.TagLib_FileRefRef
 
 type AudioProperties struct {
 	Length, LengthMs, Bitrate, Samplerate, Channels int
@@ -49,15 +49,32 @@ type AudioProperties struct {
 func Open(filename string) (*File, error) {
 	fp := C.CString(filename)
 	defer C.free(unsafe.Pointer(fp))
-	f := (C.audiotags_file_new(fp))
+	f := C.audiotags_file_new(fp)
 	if f == nil {
 		return nil, fmt.Errorf("cannot process %s", filename)
 	}
 	return (*File)(f), nil
 }
 
+func FromData(data []byte) (*File, error) {
+	f := C.audiotags_file_memory((*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)))
+	if f == nil {
+		return nil, fmt.Errorf("cannot process provided data")
+	}
+	return (*File)(f), nil
+}
+
 func Read(filename string) (map[string]string, *AudioProperties, error) {
 	f, err := Open(filename)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer f.Close()
+	return f.ReadTags(), f.ReadAudioProperties(), nil
+}
+
+func ReadFromData(data []byte) (map[string]string, *AudioProperties, error) {
+	f, err := FromData(data)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,7 +101,7 @@ func ReadAudioProperties(filename string) (*AudioProperties, error) {
 }
 
 func (f *File) Close() {
-	C.audiotags_file_close((*C.TagLib_File)(f))
+	C.audiotags_file_close((*C.TagLib_FileRefRef)(f))
 }
 
 func (f *File) ReadTags() map[string]string {
@@ -92,17 +109,17 @@ func (f *File) ReadTags() map[string]string {
 	mapsNextId++
 	m := make(map[string]string)
 	maps[id] = m
-	C.audiotags_file_properties((*C.TagLib_File)(f), C.int(id))
+	C.audiotags_file_properties((*C.TagLib_FileRefRef)(f), C.int(id))
 	delete(maps, id)
 	return m
 }
 
 func (f *File) WriteTag(tag, value string) bool {
-	tag_c := C.CString(tag)
-	defer C.free(unsafe.Pointer(tag_c))
-	value_c := C.CString(value)
-	defer C.free(unsafe.Pointer(value_c))
-	if C.audiotags_write_property((*C.TagLib_File)(f), tag_c, value_c) {
+	tagC := C.CString(tag)
+	defer C.free(unsafe.Pointer(tagC))
+	valueC := C.CString(value)
+	defer C.free(unsafe.Pointer(valueC))
+	if C.audiotags_write_property((*C.TagLib_FileRefRef)(f), tagC, valueC) {
 		return true
 	} else {
 		return false
@@ -110,20 +127,20 @@ func (f *File) WriteTag(tag, value string) bool {
 }
 
 func (f *File) WriteTags(tag_map map[string]string) bool {
-	tag_fields := make([]*C.char, len(tag_map))
-	tag_values := make([]*C.char, len(tag_map))
+	tagFields := make([]*C.char, len(tag_map))
+	tagValues := make([]*C.char, len(tag_map))
 	i := 0
 	for field, value := range tag_map {
-		field_c := C.CString(field)
-		tag_fields[i] = field_c
-		defer C.free(unsafe.Pointer(field_c))
+		fieldC := C.CString(field)
+		tagFields[i] = fieldC
+		defer C.free(unsafe.Pointer(fieldC))
 
-		value_c := C.CString(value)
-		tag_values[i] = value_c
-		defer C.free(unsafe.Pointer(value_c))
+		valueC := C.CString(value)
+		tagValues[i] = valueC
+		defer C.free(unsafe.Pointer(valueC))
 		i++
 	}
-	if C.audiotags_write_properties((*C.TagLib_File)(f), C.uint(len(tag_map)), &tag_fields[0], &tag_values[0]) {
+	if C.audiotags_write_properties((*C.TagLib_FileRefRef)(f), C.uint(len(tag_map)), &tagFields[0], &tagValues[0]) {
 		return true
 	} else {
 		return false
@@ -131,7 +148,7 @@ func (f *File) WriteTags(tag_map map[string]string) bool {
 }
 
 func (f *File) ReadAudioProperties() *AudioProperties {
-	ap := C.audiotags_file_audioproperties((*C.TagLib_File)(f))
+	ap := C.audiotags_file_audioproperties((*C.TagLib_FileRefRef)(f))
 	if ap == nil {
 		return nil
 	}
@@ -145,7 +162,7 @@ func (f *File) ReadAudioProperties() *AudioProperties {
 }
 
 func (f *File) WritePicture(data []byte, fmt, w, h int) bool {
-	if C.audiotags_write_picture((*C.TagLib_File)(f), (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)),
+	if C.audiotags_write_picture((*C.TagLib_FileRefRef)(f), (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)),
 			C.int(w), C.int(h), C.int(fmt)) {
 		return true
 	} else {
@@ -154,7 +171,7 @@ func (f *File) WritePicture(data []byte, fmt, w, h int) bool {
 }
 
 func (f *File) RemovePictures() bool {
-	if C.audiotags_remove_pictures((*C.TagLib_File)(f)) {
+	if C.audiotags_remove_pictures((*C.TagLib_FileRefRef)(f)) {
 		return true
 	} else {
 		return false
