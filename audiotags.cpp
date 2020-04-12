@@ -113,7 +113,7 @@ bool audiotags_write_properties(TagLib_FileRefRef *fileRefRef, unsigned int len,
   TagLib::Tag *t = fileRef->tag();
 
   bool prop_changed = false;
-  for(uint i = 0; i < len; i++) {
+  for(TagLib::uint i = 0; i < len; i++) {
     TagLib::String field(fields_c[i], TagLib::String::Type::UTF8);
     TagLib::String value(values_c[i], TagLib::String::Type::UTF8);
     if(field == "title") {
