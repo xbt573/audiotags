@@ -57,6 +57,11 @@ func Open(filename string) (*File, error) {
 }
 
 func FromData(data []byte) (*File, error) {
+	if len(data) == 0 {
+		return nil, fmt.Errorf("got empty byte array")
+	}
+
+	// actually parse data
 	f := C.audiotags_file_memory((*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)))
 	if f == nil {
 		return nil, fmt.Errorf("cannot process provided data")
@@ -162,6 +167,10 @@ func (f *File) ReadAudioProperties() *AudioProperties {
 }
 
 func (f *File) WritePicture(data []byte, fmt, w, h int) bool {
+	if len(data) == 0 {
+		return false
+	}
+
 	if C.audiotags_write_picture((*C.TagLib_FileRefRef)(f), (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)),
 			C.int(w), C.int(h), C.int(fmt)) {
 		return true
