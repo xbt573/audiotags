@@ -36,6 +36,7 @@ extern void go_map_put(int id, char *key, char *val);
 
 TagLib_FileRefRef *audiotags_file_new(const char *filename);
 TagLib_FileRefRef *audiotags_file_memory(const char *data, unsigned int length);
+TagLib_FileRefRef *audiotags_file_memory_with_name(const char *fileName, const char *data, unsigned int length);
 void audiotags_file_close(TagLib_FileRefRef *file);
 void audiotags_file_properties(const TagLib_FileRefRef *file, int id);
 const TagLib_AudioProperties *audiotags_file_audioproperties(const TagLib_FileRefRef *file);

@@ -40,6 +40,21 @@
 
 static bool unicodeStrings = true;
 
+
+class ByteVectorStreamWithName : public TagLib::ByteVectorStream {
+    public:
+        ByteVectorStreamWithName(const char* name, const TagLib::ByteVector &data) : TagLib::ByteVectorStream(data) {
+            this->fileName = TagLib::FileName(name);
+        }
+        TagLib::FileName name() const {
+            return this->fileName;
+        }
+
+    private:
+        TagLib::FileName fileName;
+};
+
+
 TagLib_FileRefRef *audiotags_file_new(const char *filename)
 {
   TagLib::FileRef *fr = new TagLib::FileRef(filename);
@@ -59,6 +74,27 @@ TagLib_FileRefRef *audiotags_file_new(const char *filename)
 
 TagLib_FileRefRef *audiotags_file_memory(const char *data, unsigned int length) {
   TagLib::ByteVectorStream *ioStream = new TagLib::ByteVectorStream(TagLib::ByteVector(data, length));
+  TagLib::FileRef *fr = new TagLib::FileRef(ioStream);
+  if (fr == NULL || fr->isNull() || !fr->file()->isValid() || fr->tag() == NULL) {
+    if (fr) {
+      delete fr;
+      fr = NULL;
+    }
+    if (ioStream) {
+      delete ioStream;
+      ioStream = NULL;
+    }
+    return NULL;
+  }
+
+  TagLib_FileRefRef *holder = new TagLib_FileRefRef();
+  holder->fileRef = reinterpret_cast<void *>(fr);
+  holder->ioStream = reinterpret_cast<void *>(ioStream);
+  return holder;
+}
+
+TagLib_FileRefRef *audiotags_file_memory_with_name(const char *fileName, const char *data, unsigned int length) {
+  TagLib::ByteVectorStream *ioStream = new ByteVectorStreamWithName(fileName, TagLib::ByteVector(data, length));
   TagLib::FileRef *fr = new TagLib::FileRef(ioStream);
   if (fr == NULL || fr->isNull() || !fr->file()->isValid() || fr->tag() == NULL) {
     if (fr) {
