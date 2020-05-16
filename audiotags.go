@@ -56,33 +56,33 @@ func Open(filename string) (*File, error) {
 	return (*File)(f), nil
 }
 
-func FromData(data []byte) (*File, error) {
-	if len(data) == 0 {
-		return nil, fmt.Errorf("got empty byte array")
-	}
+// func FromData(data []byte) (*File, error) {
+// 	if len(data) == 0 {
+// 		return nil, fmt.Errorf("got empty byte array")
+// 	}
 
-	// actually parse data
-	f := C.audiotags_file_memory((*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)))
-	if f == nil {
-		return nil, fmt.Errorf("cannot process provided data")
-	}
-	return (*File)(f), nil
-}
+// 	// actually parse data
+// 	f := C.audiotags_file_memory((*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)))
+// 	if f == nil {
+// 		return nil, fmt.Errorf("cannot process provided data")
+// 	}
+// 	return (*File)(f), nil
+// }
 
-func FromDataWithName(filename string, data []byte) (*File, error) {
-	if len(data) == 0 {
-		return nil, fmt.Errorf("got empty byte array")
-	}
+// func FromDataWithName(filename string, data []byte) (*File, error) {
+// 	if len(data) == 0 {
+// 		return nil, fmt.Errorf("got empty byte array")
+// 	}
 
-	// actually parse data
-	fp := C.CString(filename)
-	defer C.free(unsafe.Pointer(fp))
-	f := C.audiotags_file_memory_with_name(fp, (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)))
-	if f == nil {
-		return nil, fmt.Errorf("cannot process provided data")
-	}
-	return (*File)(f), nil
-}
+// 	// actually parse data
+// 	fp := C.CString(filename)
+// 	defer C.free(unsafe.Pointer(fp))
+// 	f := C.audiotags_file_memory_with_name(fp, (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)))
+// 	if f == nil {
+// 		return nil, fmt.Errorf("cannot process provided data")
+// 	}
+// 	return (*File)(f), nil
+// }
 
 func Read(filename string) (map[string]string, *AudioProperties, error) {
 	f, err := Open(filename)
@@ -93,23 +93,23 @@ func Read(filename string) (map[string]string, *AudioProperties, error) {
 	return f.ReadTags(), f.ReadAudioProperties(), nil
 }
 
-func ReadFromData(data []byte) (map[string]string, *AudioProperties, error) {
-	f, err := FromData(data)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f.Close()
-	return f.ReadTags(), f.ReadAudioProperties(), nil
-}
+// func ReadFromData(data []byte) (map[string]string, *AudioProperties, error) {
+// 	f, err := FromData(data)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+// 	defer f.Close()
+// 	return f.ReadTags(), f.ReadAudioProperties(), nil
+// }
 
-func ReadFromDataWithName(filename string, data []byte) (map[string]string, *AudioProperties, error) {
-	f, err := FromDataWithName(filename, data)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f.Close()
-	return f.ReadTags(), f.ReadAudioProperties(), nil
-}
+// func ReadFromDataWithName(filename string, data []byte) (map[string]string, *AudioProperties, error) {
+// 	f, err := FromDataWithName(filename, data)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+// 	defer f.Close()
+// 	return f.ReadTags(), f.ReadAudioProperties(), nil
+// }
 
 func ReadTags(filename string) (map[string]string, error) {
 	f, err := Open(filename)
