@@ -29,12 +29,20 @@
 #include <flacfile.h>
 #include <flacpicture.h>
 #include <mp4file.h>
+#include <id3v2tag.h>
 #include <tbytevector.h>
 #include <tbytevectorstream.h>
 #include <tfile.h>
+#include <tlist.h>
 #include <tpropertymap.h>
+#include <attachedpictureframe.h>
 #include <string.h>
 #include <typeinfo>
+#include <apefile.h>
+#include <apetag.h>
+#include <id3v1tag.h>
+#include <xiphcomment.h>
+#include <mpegfile.h>
 
 #include "audiotags.h"
 
@@ -123,18 +131,37 @@ void audiotags_file_close(TagLib_FileRefRef *fileRefRef)
   delete fileRefRef;
 }
 
-void audiotags_file_properties(const TagLib_FileRefRef *fileRefRef, int id)
+void process_tags(const TagLib::PropertyMap & tags, int id)
 {
-  const TagLib::FileRef *fileRef = reinterpret_cast<const TagLib::FileRef *>(fileRefRef->fileRef);
-  TagLib::PropertyMap tags = fileRef->file()->properties();
   for(TagLib::PropertyMap::ConstIterator i = tags.begin(); i != tags.end(); ++i) {
     for(TagLib::StringList::ConstIterator j = i->second.begin(); j != i->second.end(); ++j) {
       char *key = ::strdup(i->first.toCString(unicodeStrings));
       char *val = ::strdup((*j).toCString(unicodeStrings));
-      go_map_put(id, key, val);
+      goTagPut(id, key, val);
       free(key);
       free(val);
     }
+  }
+}
+
+void audiotags_file_properties(const TagLib_FileRefRef *fileRefRef, int id)
+{
+  const TagLib::FileRef *fileRef = reinterpret_cast<const TagLib::FileRef *>(fileRefRef->fileRef);
+
+  if (TagLib::MPEG::File *mpeg = dynamic_cast<TagLib::MPEG::File *>(fileRef->file()))
+  {
+    if (auto id3v2Tag = mpeg->ID3v2Tag(false))
+    {
+        process_tags(id3v2Tag->properties(), id);
+    }
+    if (auto id3v1Tag = mpeg->ID3v1Tag(false))
+    {
+        process_tags(id3v1Tag->properties(), id);
+    }
+  }
+  else
+  {
+    process_tags(fileRef->file()->properties(), id);
   }
 }
 
@@ -225,13 +252,94 @@ enum img_type {
   // to be continued...
 };
 
+void audiotags_read_picture(TagLib_FileRefRef *fileRefRef, int id)
+{
+  const TagLib::FileRef *fileRef = reinterpret_cast<const TagLib::FileRef *>(fileRefRef->fileRef);
+
+  TagLib::ByteVector imageData;
+  if (TagLib::FLAC::File *flac = dynamic_cast<TagLib::FLAC::File *>(fileRef->file()))
+  {
+    auto pictures = flac->pictureList();
+    for (auto it = pictures.begin(); it != pictures.end(); ++it)
+    {
+        if ((*it)->type() == TagLib::FLAC::Picture::Type::FrontCover)
+        {
+            imageData = (*it)->data();
+            break;
+        }
+    }
+  }
+  else if (TagLib::APE::File *ape = dynamic_cast<TagLib::APE::File *>(fileRef->file()))
+  {
+    if (auto apeTag = ape->APETag(false))
+    {
+      printf("\nape tag !!\n");
+    }
+  }
+  else if (TagLib::MPEG::File *mpeg = dynamic_cast<TagLib::MPEG::File *>(fileRef->file()))
+  {
+    if (auto id3v2Tag = mpeg->ID3v2Tag(false))
+    {
+      auto frames = id3v2Tag->frameList();
+      for (auto it = frames.begin(); it != frames.end(); ++it)
+      {
+        if (auto *pFrame = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(*it))
+        {
+          imageData = pFrame->picture();
+          break;
+        }
+      }
+    }
+  }
+  else
+  {
+    auto tags = fileRef->file()->tag();
+    if (auto mp4Tag = dynamic_cast<TagLib::MP4::Tag*>(tags))
+    {
+      TagLib::MP4::CoverArtList covers = mp4Tag->item("covr").toCoverArtList();
+      if (!covers.isEmpty())
+      {
+        imageData = covers.front().data();
+      }
+    }
+    else if (auto oggTag = dynamic_cast<TagLib::Ogg::XiphComment*>(tags))
+    {
+      auto pictures = oggTag->pictureList();
+      for (auto it = pictures.begin(); it != pictures.end(); ++it)
+      {
+        if ((*it)->type() == TagLib::FLAC::Picture::Type::FrontCover)
+        {
+          imageData = (*it)->data();
+          break;
+        }
+      }
+    }
+    else if (auto id3Tag = dynamic_cast<TagLib::ID3v2::Tag*>(tags))
+    {
+      auto frames = id3Tag->frameList();
+      for (auto it = frames.begin(); it != frames.end(); ++it)
+      {
+        if (auto *pFrame = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(*it))
+        {
+          imageData = pFrame->picture();
+          break;
+        }
+      }
+    }
+  }
+  if (!imageData.isEmpty())
+  {
+    goPutImage(id, imageData.data(), imageData.size());
+  }
+}
+
 bool audiotags_write_picture(TagLib_FileRefRef *fileRefRef, const char *data, unsigned int length, int w, int h, int type)
 {
   const TagLib::FileRef *fileRef = reinterpret_cast<const TagLib::FileRef *>(fileRefRef->fileRef);
   const TagLib::ByteVector byte_vec = TagLib::ByteVector(data, length);
 
   // check which type the file is (flac, mp4, etc)
-  if(TagLib::FLAC::File *flac = dynamic_cast<TagLib::FLAC::File *>(fileRef->file())) {
+  if (TagLib::FLAC::File *flac = dynamic_cast<TagLib::FLAC::File *>(fileRef->file())) {
     TagLib::FLAC::Picture *pic = new TagLib::FLAC::Picture;
     // only front cover type supported for now
     pic->setType(TagLib::FLAC::Picture::Type::FrontCover);

@@ -1,12 +1,10 @@
 package audiotags
 
 import (
-	"io"
-	"io/ioutil"
-	"os"
-	"path"
-	"strconv"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestReadNothing(t *testing.T) {
@@ -91,201 +89,141 @@ func TestTagLib(t *testing.T) {
 	}
 }
 
-func TestWriteTagLib(t *testing.T) {
-	fileName := "test.mp3"
-	file, err := Open(fileName)
-
-	if err != nil {
-		t.Fatalf("Read returned error: %s", err)
-	}
-	tempDir, err := ioutil.TempDir("", "go-taglib-test")
-
-	if err != nil {
-		t.Fatalf("Cannot create temporary file for writing tests: %s", err)
-	}
-
-	tempFileName := path.Join(tempDir, "go-taglib-test.mp3")
-
-	defer file.Close()
-	defer os.RemoveAll(tempDir)
-
-	err = cp(tempFileName, fileName)
-
-	if err != nil {
-		t.Fatalf("Cannot copy file for writing tests: %s", err)
-	}
-
-	modifiedFile, err := Open(tempFileName)
-	if err != nil {
-		t.Fatalf("Read returned error: %s", err)
-	}
-
-	tags := file.ReadTags()
-	writeTags := make(map[string]string)
-	writeTags["artist"] = getModifiedString(tags["artist"]) 
-	writeTags["album"] = getModifiedString(tags["album"])
-	writeTags["title"] = getModifiedString(tags["title"])
-	writeTags["comment"] = getModifiedString(tags["comment"])
-	writeTags["genre"] = getModifiedString(tags["genre"])
-	writeTags["tracknumber"] = getModifiedInt(tags["tracknumber"], t)
-	writeTags["date"] = getModifiedInt(tags["date"], t)
-
-	modifiedFile.WriteTags(writeTags)
-	if err != nil {
-		t.Fatalf("Cannot save file : %s", err)
-	}
-	modifiedFile.Close()
-	
-	//Re-open the modified file
-	modifiedFile, err = Open(tempFileName)
-	if err != nil {
-		t.Fatalf("Read returned error: %s", err)
-	}
-
-	// Test the Tags
-	newTags := modifiedFile.ReadTags()
-	if newTags["title"] != getModifiedString("The Title") {
-		t.Errorf("Got wrong modified title: %s", newTags["title"])
-	}
-
-	if newTags["artist"] != getModifiedString("The Artist") {
-		t.Errorf("Got wrong modified artist: %s", newTags["artist"])
-	}
-
-	if newTags["album"] != getModifiedString("The Album") {
-		t.Errorf("Got wrong modified album: %s", newTags["album"])
-	}
-
-	if newTags["comment"] != getModifiedString("A Comment") {
-		t.Errorf("Got wrong modified comment: %s", newTags["comment"])
-	}
-
-	if newTags["genre"] != getModifiedString("Booty Bass") {
-		t.Errorf("Got wrong modified genre: %s", newTags["genre"])
-	}
-
-	if newTags["date"] != getModifiedInt("1942", t) {
-		t.Errorf("Got wrong modified year: %v", newTags["date"])
-	}
-
-	if newTags["tracknumber"] != getModifiedInt("42", t) {
-		t.Errorf("Got wrong modified track: %v", newTags["tracknumber"])
-	}
+var expectedTags = map[string]string{
+	"album":       "Test Album",
+	"albumartist": "Test AlbumArtist",
+	"artist":      "Test Artist",
+	"composer":    "Test Composer",
+	"date":        "2000",
+	"description": "Test Comment",
+	"discnumber":  "02",
+	"genre":       "Jazz",
+	"title":       "Test Title",
+	"tracknumber": "03/06",
 }
 
-func TestGenericWriteTagLib(t *testing.T) {
-	fileName := "test.mp3"
-	file, err := Open(fileName)
-
-	if err != nil {
-		t.Fatalf("Read returned error: %s", err)
+func TestReads(t *testing.T) {
+	var tests = []struct {
+		input        string
+		expectedTags func(map[string]string) map[string]string
+		noImage      bool
+	}{
+		{
+			input:   "sample.ape",
+			noImage: true,
+		},
+		{
+			input: "sample.flac",
+			expectedTags: func(m map[string]string) map[string]string {
+				m["tracknumber"] = "03"
+				m["tracktotal"] = "06"
+				return m
+			},
+		},
+		{
+			input: "sample.id3v11.mp3",
+			expectedTags: func(m map[string]string) map[string]string {
+				delete(m, "albumartist")
+				delete(m, "composer")
+				delete(m, "description")
+				delete(m, "discnumber")
+				delete(m, "tracktotal")
+				m["comment"] = "Test Comment"
+				m["tracknumber"] = "3"
+				return m
+			},
+		},
+		{
+			input: "sample.id3v22.mp3",
+			expectedTags: func(m map[string]string) map[string]string {
+				delete(m, "description")
+				delete(m, "tracktotal")
+				m["comment"] = "Test Comment"
+				m["tracknumber"] = "03/06"
+				return m
+			},
+		},
+		{
+			input: "sample.id3v23.mp3",
+			expectedTags: func(m map[string]string) map[string]string {
+				delete(m, "description")
+				delete(m, "tracktotal")
+				m["comment"] = "Test Comment"
+				m["tracknumber"] = "03/06"
+				return m
+			},
+		},
+		{
+			input: "sample.id3v24.mp3",
+			expectedTags: func(m map[string]string) map[string]string {
+				delete(m, "description")
+				delete(m, "tracktotal")
+				m["comment"] = "Test Comment"
+				m["tracknumber"] = "03/06"
+				return m
+			},
+		},
+		{
+			input: "sample.m4a",
+			expectedTags: func(m map[string]string) map[string]string {
+				delete(m, "description")
+				delete(m, "tracktotal")
+				m["comment"] = "Test Comment"
+				m["tracknumber"] = "3/6"
+				m["discnumber"] = "2"
+				return m
+			},
+		},
+		{
+			input: "sample.mp4",
+			expectedTags: func(m map[string]string) map[string]string {
+				delete(m, "description")
+				delete(m, "tracktotal")
+				m["comment"] = "Test Comment"
+				m["tracknumber"] = "3/6"
+				m["discnumber"] = "2"
+				return m
+			},
+		},
+		{
+			input: "sample.ogg",
+			expectedTags: func(m map[string]string) map[string]string {
+				delete(m, "description")
+				m["comment"] = "Test Comment"
+				m["tracknumber"] = "3"
+				m["discnumber"] = "02"
+				m["tracktotal"] = "06"
+				return m
+			},
+		},
+		{
+			input:   "sample.wv",
+			noImage: true,
+		},
 	}
-	tempDir, err := ioutil.TempDir("", "go-taglib-test")
 
-	if err != nil {
-		t.Fatalf("Cannot create temporary file for writing tests: %s", err)
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			file, err := Open(filepath.Join("testdata", test.input))
+			assert.NoError(t, err)
+			assert.NotNil(t, file)
+			assert.True(t, file.HasMedia())
+			tags := file.ReadTags()
+			expected := expectedTags
+			if test.expectedTags != nil {
+				tags := map[string]string{}
+				for k, v := range expectedTags {
+					tags[k] = v
+				}
+				expected = test.expectedTags(tags)
+			}
+			assert.Equal(t, expected, tags)
+
+			if !test.noImage {
+				img, err := file.ReadImage()
+				assert.NoError(t, err)
+				assert.NotNil(t, img)
+			}
+		})
 	}
-
-	tempFileName := path.Join(tempDir, "go-taglib-test.mp3")
-
-	defer file.Close()
-	defer os.RemoveAll(tempDir)
-
-	err = cp(tempFileName, fileName)
-
-	if err != nil {
-		t.Fatalf("Cannot copy file for writing tests: %s", err)
-	}
-
-	modifiedFile, err := Open(tempFileName)
-	if err != nil {
-		t.Fatalf("Read returned error: %s", err)
-	}
-	tags := file.ReadTags()
-	writeTags := make(map[string]string)
-	writeTags["artist"] = getModifiedString(tags["artist"]) 
-	writeTags["album"] = getModifiedString(tags["album"])
-	writeTags["title"] = getModifiedString(tags["title"])
-	writeTags["comment"] = getModifiedString(tags["comment"])
-	writeTags["genre"] = getModifiedString(tags["genre"])
-	writeTags["tracknumber"] = getModifiedInt(tags["tracknumber"], t)
-	writeTags["date"] = getModifiedInt(tags["date"], t)
-
-	modifiedFile.WriteTags(writeTags)
-	if err != nil {
-		t.Fatalf("Cannot save file : %s", err)
-	}
-	modifiedFile.Close()
-
-	//Re-open the modified file
-	modifiedFile, err = Open(tempFileName)
-	if err != nil {
-		t.Fatalf("Read returned error: %s", err)
-	}
-
-	// Test the Tags
-	newTags := modifiedFile.ReadTags()
-	if newTags["title"] != getModifiedString("The Title") {
-		t.Errorf("Got wrong modified title: %s", newTags["title"])
-	}
-
-	if newTags["artist"] != getModifiedString("The Artist") {
-		t.Errorf("Got wrong modified artist: %s", newTags["artist"])
-	}
-
-	if newTags["album"] != getModifiedString("The Album") {
-		t.Errorf("Got wrong modified album: %s", newTags["album"])
-	}
-
-	if newTags["comment"] != getModifiedString("A Comment") {
-		t.Errorf("Got wrong modified comment: %s", newTags["comment"])
-	}
-
-	if newTags["genre"] != getModifiedString("Booty Bass") {
-		t.Errorf("Got wrong modified genre: %s", newTags["genre"])
-	}
-
-	if newTags["date"] != getModifiedInt("1942", t) {
-		t.Errorf("Got wrong modified year: %v", newTags["date"])
-	}
-
-	if newTags["tracknumber"] != getModifiedInt("42", t) {
-		t.Errorf("Got wrong modified track: %v", newTags["tracknumber"])
-	}
-}
-
-func checkModified(original string, modified string) bool {
-	return modified == getModifiedString(original)
-}
-
-func getModifiedString(s string) string {
-	return s + " MODIFIED"
-}
-
-func getModifiedInt(s string, t *testing.T) string {
-	val, err := strconv.Atoi(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return strconv.Itoa(val + 1)
-}
-
-func cp(dst, src string) error {
-	s, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	// no need to check errors on read only file, we already got everything
-	// we need from the filesystem, so nothing can go wrong now.
-	defer s.Close()
-	d, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(d, s); err != nil {
-		d.Close()
-		return err
-	}
-	return d.Close()
 }

@@ -29,6 +29,11 @@ package audiotags
 */
 import "C"
 import (
+	"bytes"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"io"
 	"strings"
 	"unsafe"
 )
@@ -37,13 +42,21 @@ import "fmt"
 
 const (
 	JPEG = iota
-	PNG = iota
+	PNG  = iota
 )
 
 type File C.TagLib_FileRefRef
 
 type AudioProperties struct {
 	Length, LengthMs, Bitrate, Samplerate, Channels int
+}
+
+func (f *File) HasMedia() bool {
+	return !f.ReadAudioProperties().isEmpty()
+}
+
+func (props *AudioProperties) isEmpty() bool {
+	return props.Bitrate == 0 && props.LengthMs == 0 && props.Length == 0 && props.Samplerate == 0 && props.Channels == 0
 }
 
 func Open(filename string) (*File, error) {
@@ -54,33 +67,6 @@ func Open(filename string) (*File, error) {
 		return nil, fmt.Errorf("cannot process %s", filename)
 	}
 	return (*File)(f), nil
-}
-
-func Read(filename string) (map[string]string, *AudioProperties, error) {
-	f, err := Open(filename)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f.Close()
-	return f.ReadTags(), f.ReadAudioProperties(), nil
-}
-
-func ReadTags(filename string) (map[string]string, error) {
-	f, err := Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return f.ReadTags(), nil
-}
-
-func ReadAudioProperties(filename string) (*AudioProperties, error) {
-	f, err := Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return f.ReadAudioProperties(), nil
 }
 
 func (f *File) Close() {
@@ -109,21 +95,26 @@ func (f *File) WriteTag(tag, value string) bool {
 	}
 }
 
-func (f *File) WriteTags(tag_map map[string]string) bool {
-	tagFields := make([]*C.char, len(tag_map))
-	tagValues := make([]*C.char, len(tag_map))
+func (f *File) WriteTags(tagMap map[string]string) bool {
+	tagFields := make([]*C.char, len(tagMap))
+	tagValues := make([]*C.char, len(tagMap))
 	i := 0
-	for field, value := range tag_map {
+	for field, value := range tagMap {
 		fieldC := C.CString(field)
 		tagFields[i] = fieldC
-		defer C.free(unsafe.Pointer(fieldC))
 
 		valueC := C.CString(value)
 		tagValues[i] = valueC
-		defer C.free(unsafe.Pointer(valueC))
 		i++
 	}
-	if C.audiotags_write_properties((*C.TagLib_FileRefRef)(f), C.uint(len(tag_map)), &tagFields[0], &tagValues[0]) {
+	defer func() {
+		for i := 0; i < len(tagMap); i++ {
+			C.free(unsafe.Pointer(tagFields[i]))
+			C.free(unsafe.Pointer(tagValues[i]))
+		}
+	}()
+
+	if C.audiotags_write_properties((*C.TagLib_FileRefRef)(f), C.uint(len(tagMap)), &tagFields[0], &tagValues[0]) {
 		return true
 	} else {
 		return false
@@ -144,13 +135,59 @@ func (f *File) ReadAudioProperties() *AudioProperties {
 	return &p
 }
 
-func (f *File) WritePicture(data []byte, fmt, w, h int) bool {
+func (f *File) ReadImage() (image.Image, error) {
+	id := mapImagesNextId
+	mapImagesNextId++
+	mapImages[id] = nil
+	C.audiotags_read_picture((*C.TagLib_FileRefRef)(f), C.int(id))
+	if mapImages[id] != nil {
+		img, _, err := image.Decode(mapImages[id])
+		delete(mapImages, id)
+		return img, err
+	}
+
+	return nil, nil
+}
+
+func (f *File) WriteImage(img image.Image, format int) error {
+	i, ok := img.(*image.NRGBA)
+	if !ok {
+		return fmt.Errorf("can't get convert image")
+	}
+
+	buff := bytes.NewBuffer([]byte{})
+	switch format {
+	case JPEG:
+		if err := jpeg.Encode(buff, i.SubImage(i.Rect), &jpeg.Options{Quality: 65}); err != nil {
+			return err
+		}
+	case PNG:
+		if err := png.Encode(buff, i.SubImage(i.Rect)); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsuppported image format")
+	}
+
+	data := buff.Bytes()
+	if len(data) == 0 {
+		return fmt.Errorf("can't write empty image")
+	}
+
+	if !f.WriteImageData(data, img.Bounds().Size().X, img.Bounds().Size().Y, format) {
+		return fmt.Errorf("can't write image")
+	}
+
+	return nil
+}
+
+func (f *File) WriteImageData(data []byte, fmt, w, h int) bool {
 	if len(data) == 0 {
 		return false
 	}
 
 	if C.audiotags_write_picture((*C.TagLib_FileRefRef)(f), (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)),
-			C.int(w), C.int(h), C.int(fmt)) {
+		C.int(w), C.int(h), C.int(fmt)) {
 		return true
 	} else {
 		return false
@@ -168,10 +205,18 @@ func (f *File) RemovePictures() bool {
 var maps = make(map[int]map[string]string)
 var mapsNextId = 0
 
-//export go_map_put
-func go_map_put(id C.int, key *C.char, val *C.char) {
+//export goTagPut
+func goTagPut(id C.int, key *C.char, val *C.char) {
 	m := maps[int(id)]
 	k := strings.ToLower(C.GoString(key))
 	v := C.GoString(val)
 	m[k] = v
+}
+
+var mapImages = make(map[int]io.Reader)
+var mapImagesNextId = 0
+
+//export goPutImage
+func goPutImage(id C.int, data *C.char, size C.int) {
+	mapImages[int(id)] = bytes.NewReader(C.GoBytes(unsafe.Pointer(data), size))
 }

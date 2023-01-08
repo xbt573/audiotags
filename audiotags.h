@@ -32,7 +32,8 @@ extern "C" {
 typedef struct { void *fileRef; void *ioStream; } TagLib_FileRefRef;
 typedef struct { int dummy; } TagLib_AudioProperties;
 
-extern void go_map_put(int id, char *key, char *val);
+extern void goTagPut(int id, char *key, char *val);
+extern void goPutImage(int id, char *data, int size);
 
 TagLib_FileRefRef *audiotags_file_new(const char *filename);
 TagLib_FileRefRef *audiotags_file_memory(const char *data, unsigned int length);
@@ -49,6 +50,7 @@ int audiotags_audioproperties_bitrate(const TagLib_AudioProperties *audioPropert
 int audiotags_audioproperties_samplerate(const TagLib_AudioProperties *audioProperties);
 int audiotags_audioproperties_channels(const TagLib_AudioProperties *audioProperties);
 
+void audiotags_read_picture(TagLib_FileRefRef *fileRefRef, int id);
 bool audiotags_write_picture(TagLib_FileRefRef *file, const char *data, unsigned int length, int w, int h, int type);
 bool audiotags_remove_pictures(TagLib_FileRefRef *file);
 
