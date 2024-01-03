@@ -30,6 +30,7 @@ package audiotags
 import "C"
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -37,8 +38,6 @@ import (
 	"strings"
 	"unsafe"
 )
-
-import "fmt"
 
 const (
 	JPEG = iota
@@ -73,37 +72,29 @@ func (f *File) Close() {
 	C.audiotags_file_close((*C.TagLib_FileRefRef)(f))
 }
 
-func (f *File) ReadTags() map[string]string {
+func (f *File) ReadTags() map[string][]string {
 	id := mapsNextId
 	mapsNextId++
-	m := make(map[string]string)
+	m := make(map[string][]string)
 	maps[id] = m
 	C.audiotags_file_properties((*C.TagLib_FileRefRef)(f), C.int(id))
 	delete(maps, id)
 	return m
 }
 
-func (f *File) WriteTag(tag, value string) bool {
-	tagC := C.CString(tag)
-	defer C.free(unsafe.Pointer(tagC))
-	valueC := C.CString(value)
-	defer C.free(unsafe.Pointer(valueC))
-	if C.audiotags_write_property((*C.TagLib_FileRefRef)(f), tagC, valueC) {
+func (f *File) WriteTags(tagMap map[string][]string) bool {
+	if len(tagMap) == 0 {
 		return true
-	} else {
-		return false
 	}
-}
 
-func (f *File) WriteTags(tagMap map[string]string) bool {
 	tagFields := make([]*C.char, len(tagMap))
 	tagValues := make([]*C.char, len(tagMap))
-	i := 0
-	for field, value := range tagMap {
+	var i int
+	for field, values := range tagMap {
 		fieldC := C.CString(field)
 		tagFields[i] = fieldC
 
-		valueC := C.CString(value)
+		valueC := C.CString(strings.Join(values, "\n"))
 		tagValues[i] = valueC
 		i++
 	}
@@ -114,11 +105,7 @@ func (f *File) WriteTags(tagMap map[string]string) bool {
 		}
 	}()
 
-	if C.audiotags_write_properties((*C.TagLib_FileRefRef)(f), C.uint(len(tagMap)), &tagFields[0], &tagValues[0]) {
-		return true
-	} else {
-		return false
-	}
+	return bool(C.audiotags_write_properties((*C.TagLib_FileRefRef)(f), C.uint(len(tagMap)), &tagFields[0], &tagValues[0]))
 }
 
 func (f *File) ReadAudioProperties() *AudioProperties {
@@ -186,23 +173,14 @@ func (f *File) WriteImageData(data []byte, fmt, w, h int) bool {
 		return false
 	}
 
-	if C.audiotags_write_picture((*C.TagLib_FileRefRef)(f), (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)),
-		C.int(w), C.int(h), C.int(fmt)) {
-		return true
-	} else {
-		return false
-	}
+	return bool(C.audiotags_write_picture((*C.TagLib_FileRefRef)(f), (*C.char)(unsafe.Pointer(&data[0])), C.uint(len(data)), C.int(w), C.int(h), C.int(fmt)))
 }
 
 func (f *File) RemovePictures() bool {
-	if C.audiotags_remove_pictures((*C.TagLib_FileRefRef)(f)) {
-		return true
-	} else {
-		return false
-	}
+	return bool(C.audiotags_remove_pictures((*C.TagLib_FileRefRef)(f)))
 }
 
-var maps = make(map[int]map[string]string)
+var maps = make(map[int]map[string][]string)
 var mapsNextId = 0
 
 //export goTagPut
@@ -210,7 +188,7 @@ func goTagPut(id C.int, key *C.char, val *C.char) {
 	m := maps[int(id)]
 	k := strings.ToLower(C.GoString(key))
 	v := C.GoString(val)
-	m[k] = v
+	m[k] = append(m[k], v)
 }
 
 var mapImages = make(map[int]io.Reader)

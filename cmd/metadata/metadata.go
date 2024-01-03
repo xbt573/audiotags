@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/psyton/audiotags"
 	"os"
+
+	"github.com/sentriz/audiotags"
 )
 
 var usage = func() {

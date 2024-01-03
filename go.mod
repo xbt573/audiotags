@@ -1,4 +1,4 @@
-module github.com/psyton/audiotags
+module github.com/sentriz/audiotags
 
 go 1.19
 

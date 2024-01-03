@@ -165,47 +165,42 @@ void audiotags_file_properties(const TagLib_FileRefRef *fileRefRef, int id)
   }
 }
 
-bool audiotags_write_property(TagLib_FileRefRef *fileRefRef, const char *field_c, const char *value_c)
-{
-  return audiotags_write_properties(fileRefRef, 1, &field_c, &value_c);
-}
-
 bool audiotags_write_properties(TagLib_FileRefRef *fileRefRef, unsigned int len, const char *fields_c[], const char *values_c[])
 {
-  TagLib::FileRef *fileRef = reinterpret_cast<TagLib::FileRef *>(fileRefRef->fileRef);
-  TagLib::Tag *t = fileRef->tag();
+  TagLib::FileRef *f = reinterpret_cast<TagLib::FileRef *>(fileRefRef->fileRef);
+  TagLib::Tag *tag = f->tag();
 
-  bool prop_changed = false;
-  for(TagLib::uint i = 0; i < len; i++) {
+  TagLib::PropertyMap properties = f->file()->properties();
+  properties.clear();
+  f->file()->setProperties(properties);
+
+  for (TagLib::uint i = 0; i < len; i++) {
     TagLib::String field(fields_c[i], TagLib::String::Type::UTF8);
     TagLib::String value(values_c[i], TagLib::String::Type::UTF8);
-    if(field == "title") {
-      t->setTitle(value);
-    } else if(field == "artist") {
-      t->setArtist(value);
-    } else if(field == "album") {
-      t->setAlbum(value);
-    } else if(field == "comment") {
-      t->setComment(value);
-    } else if(field == "genre") {
-      t->setGenre(value);
-    } else if(field == "year") {
-      t->setYear(value.toInt());
-    } else if(field == "track") {
-      t->setTrack(value.toInt());
+    if (field == "title") {
+      tag->setTitle(value);
+    } else if (field == "artist") {
+      tag->setArtist(value);
+    } else if (field == "album") {
+      tag->setAlbum(value);
+    } else if (field == "comment") {
+      tag->setComment(value);
+    } else if (field == "genre") {
+      tag->setGenre(value);
+    } else if (field == "year") {
+      tag->setYear(unsigned(value.toInt()));
+    } else if (field == "track") {
+      tag->setTrack(unsigned(value.toInt()));
     } else {
-      TagLib::PropertyMap tags = fileRef->file()->properties();
-      if(!tags.contains(field)) {
-        tags.insert(field, value);
-      } else {
-        tags.replace(field, value);
-      }
-      if((fileRef->file()->setProperties(tags)).size() > 0) {
-        return false;
-      }
+      TagLib::PropertyMap properties = f->file()->properties();
+      TagLib::StringList values = value.split('\n');
+      for (const auto &v : values)
+        properties.insert(field, v);
+      f->file()->setProperties(properties);
     }
-    fileRef->save();
   }
+
+  f->file()->save();
 
   return true;
 }
