@@ -174,7 +174,7 @@ bool audiotags_write_properties(TagLib_FileRefRef *fileRefRef, unsigned int len,
   properties.clear();
   f->file()->setProperties(properties);
 
-  for (TagLib::uint i = 0; i < len; i++) {
+  for (uint i = 0; i < len; i++) {
     TagLib::String field(fields_c[i], TagLib::String::Type::UTF8);
     TagLib::String value(values_c[i], TagLib::String::Type::UTF8);
     if (field == "title") {
@@ -188,9 +188,9 @@ bool audiotags_write_properties(TagLib_FileRefRef *fileRefRef, unsigned int len,
     } else if (field == "genre") {
       tag->setGenre(value);
     } else if (field == "year") {
-      tag->setYear(unsigned(value.toInt()));
+      tag->setYear(unsigned(value.toInt(nullptr)));
     } else if (field == "track") {
-      tag->setTrack(unsigned(value.toInt()));
+      tag->setTrack(unsigned(value.toInt(nullptr)));
     } else {
       TagLib::PropertyMap properties = f->file()->properties();
       TagLib::StringList values = value.split('\n');
