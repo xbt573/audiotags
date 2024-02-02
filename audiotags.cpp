@@ -218,7 +218,7 @@ const TagLib::AudioProperties *props(const TagLib_AudioProperties *audioProperti
 
 int audiotags_audioproperties_length(const TagLib_AudioProperties *audioProperties)
 {
-  return props(audioProperties)->length();
+  return props(audioProperties)->lengthInSeconds();
 }
 
 int audiotags_audioproperties_length_ms(const TagLib_AudioProperties *audioProperties)
