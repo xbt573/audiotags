@@ -36,6 +36,7 @@ import (
 	"image/png"
 	"io"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
@@ -73,6 +74,9 @@ func (f *File) Close() {
 }
 
 func (f *File) ReadTags() map[string][]string {
+	mapmu.Lock()
+	defer mapmu.Unlock()
+
 	id := mapsNextId
 	mapsNextId++
 	m := make(map[string][]string)
@@ -180,8 +184,9 @@ func (f *File) RemovePictures() bool {
 	return bool(C.audiotags_remove_pictures((*C.TagLib_FileRefRef)(f)))
 }
 
+var mapmu sync.Mutex
 var maps = make(map[int]map[string][]string)
-var mapsNextId = 0
+var mapsNextId int
 
 //export goTagPut
 func goTagPut(id C.int, key *C.char, val *C.char) {
