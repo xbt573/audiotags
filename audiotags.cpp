@@ -154,7 +154,7 @@ void audiotags_file_properties(const TagLib_FileRefRef *fileRefRef, int id)
     {
         process_tags(id3v2Tag->properties(), id);
     }
-    if (auto id3v1Tag = mpeg->ID3v1Tag(false))
+    else if (auto id3v1Tag = mpeg->ID3v1Tag(false))
     {
         process_tags(id3v1Tag->properties(), id);
     }
