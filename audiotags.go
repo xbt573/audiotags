@@ -34,9 +34,9 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
-	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -73,20 +73,17 @@ func (f *File) Close() {
 	C.audiotags_file_close((*C.TagLib_FileRefRef)(f))
 }
 
-func (f *File) ReadTags() map[string][]string {
-	mapmu.Lock()
-	defer mapmu.Unlock()
+func (f *File) ReadTags() keyMap {
+	id := mapsNextID.Add(1)
+	defer maps.Delete(id)
 
-	id := mapsNextId
-	mapsNextId++
-	m := make(map[string][]string)
-	maps[id] = m
+	m := keyMap{}
+	maps.Store(id, m)
 	C.audiotags_file_properties((*C.TagLib_FileRefRef)(f), C.int(id))
-	delete(maps, id)
 	return m
 }
 
-func (f *File) WriteTags(tagMap map[string][]string) bool {
+func (f *File) WriteTags(tagMap keyMap) bool {
 	if len(tagMap) == 0 {
 		return true
 	}
@@ -127,17 +124,16 @@ func (f *File) ReadAudioProperties() *AudioProperties {
 }
 
 func (f *File) ReadImage() (image.Image, error) {
-	id := mapImagesNextId
-	mapImagesNextId++
-	mapImages[id] = nil
-	C.audiotags_read_picture((*C.TagLib_FileRefRef)(f), C.int(id))
-	if mapImages[id] != nil {
-		img, _, err := image.Decode(mapImages[id])
-		delete(mapImages, id)
-		return img, err
-	}
+	id := mapsNextID.Add(1)
+	defer maps.Delete(id)
 
-	return nil, nil
+	C.audiotags_read_picture((*C.TagLib_FileRefRef)(f), C.int(id))
+	v, ok := maps.Load(id)
+	if !ok {
+		return nil, nil
+	}
+	img, _, err := image.Decode(v.(*bytes.Reader))
+	return img, err
 }
 
 func (f *File) WriteImage(img image.Image, format int) error {
@@ -184,22 +180,21 @@ func (f *File) RemovePictures() bool {
 	return bool(C.audiotags_remove_pictures((*C.TagLib_FileRefRef)(f)))
 }
 
-var mapmu sync.Mutex
-var maps = make(map[int]map[string][]string)
-var mapsNextId int
+var maps sync.Map
+var mapsNextID atomic.Uint64
+
+type keyMap = map[string][]string
 
 //export goTagPut
 func goTagPut(id C.int, key *C.char, val *C.char) {
-	m := maps[int(id)]
+	r, _ := maps.Load(uint64(id))
+	m := r.(keyMap)
 	k := strings.ToLower(C.GoString(key))
 	v := C.GoString(val)
 	m[k] = append(m[k], v)
 }
 
-var mapImages = make(map[int]io.Reader)
-var mapImagesNextId = 0
-
 //export goPutImage
 func goPutImage(id C.int, data *C.char, size C.int) {
-	mapImages[int(id)] = bytes.NewReader(C.GoBytes(unsafe.Pointer(data), size))
+	maps.Store(uint64(id), bytes.NewReader(C.GoBytes(unsafe.Pointer(data), size)))
 }
