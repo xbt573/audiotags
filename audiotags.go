@@ -85,7 +85,7 @@ func (f *File) ReadTags() keyMap {
 
 func (f *File) WriteTags(tagMap keyMap) bool {
 	if len(tagMap) == 0 {
-		return true
+		tagMap = keyMap{"": nil}
 	}
 
 	tagFields := make([]*C.char, len(tagMap))
