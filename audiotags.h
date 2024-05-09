@@ -43,6 +43,7 @@ void audiotags_file_properties(const TagLib_FileRefRef *file, int id);
 const TagLib_AudioProperties *audiotags_file_audioproperties(const TagLib_FileRefRef *file);
 bool audiotags_write_property(TagLib_FileRefRef *file, const char *field_c, const char *value_c);
 bool audiotags_write_properties(TagLib_FileRefRef *file, unsigned int len, const char *fields_c[], const char *values_c[]);
+bool audiotags_clear_properties(TagLib_FileRefRef *file);
 
 int audiotags_audioproperties_length(const TagLib_AudioProperties *audioProperties);
 int audiotags_audioproperties_length_ms(const TagLib_AudioProperties *audioProperties);

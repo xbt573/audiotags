@@ -165,6 +165,20 @@ void audiotags_file_properties(const TagLib_FileRefRef *fileRefRef, int id)
   }
 }
 
+bool audiotags_clear_properties(TagLib_FileRefRef *fileRefRef)
+{
+  TagLib::FileRef *f = reinterpret_cast<TagLib::FileRef *>(fileRefRef->fileRef);
+  TagLib::Tag *tag = f->tag();
+
+  TagLib::PropertyMap properties = f->file()->properties();
+  properties.clear();
+  f->file()->setProperties(properties);
+
+  f->file()->save();
+
+  return true;
+}
+
 bool audiotags_write_properties(TagLib_FileRefRef *fileRefRef, unsigned int len, const char *fields_c[], const char *values_c[])
 {
   TagLib::FileRef *f = reinterpret_cast<TagLib::FileRef *>(fileRefRef->fileRef);

@@ -85,7 +85,7 @@ func (f *File) ReadTags() keyMap {
 
 func (f *File) WriteTags(tagMap keyMap) bool {
 	if len(tagMap) == 0 {
-		tagMap = keyMap{"": nil}
+		return bool(C.audiotags_clear_properties((*C.TagLib_FileRefRef)(f)))
 	}
 
 	tagFields := make([]*C.char, len(tagMap))
