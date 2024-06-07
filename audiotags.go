@@ -22,10 +22,9 @@
 package audiotags
 
 /*
-#cgo pkg-config: taglib
+#cgo pkg-config: taglib zlib
 #cgo LDFLAGS: -lstdc++
 #include "audiotags.h"
-#include <zlib.h>
 #include <stdlib.h>
 */
 import "C"
